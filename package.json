@@ -1,0 +1,46 @@
+{
+  "name": "@yashaswis/open-feature-flag-sdk",
+  "version": "0.1.0",
+  "description": "OpenFeature integration for React applications and microfrontends",
+  "type": "module",
+  "main": "./lib/index.cjs",
+  "module": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "import": "./lib/index.js",
+      "require": "./lib/index.cjs"
+    }
+  },
+  "files": [
+    "lib",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n api,web \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "node mock-server/server.js",
+    "dev:web": "vite --host 127.0.0.1 --strictPort",
+    "build": "npm run build:sdk && vite build",
+    "build:sdk": "vite build --config vite.lib.config.ts && tsc --project tsconfig.build.json",
+    "test": "npm run build:sdk && node --test tests/*.test.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@openfeature/react-sdk": "^1.4.1"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "5.2.0",
+    "concurrently": "^9.1.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "typescript": "^5.9.3",
+    "vite": "6.4.6"
+  }
+}
