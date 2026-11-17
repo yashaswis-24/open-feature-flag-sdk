@@ -1,11 +1,13 @@
+
 import {
   OpenFeature,
   OpenFeatureProvider,
 } from "@openfeature/react-sdk";
+
 import type { ReactNode } from "react";
 import { DEFAULT_DOMAIN } from "../core/initialize";
 
-export interface FeatureFlagProviderProps {
+interface FeatureFlagProviderProps {
   children: ReactNode;
 }
 

@@ -1,104 +1,349 @@
+
+import { useState } from "react";
 import {
   FeatureFlag,
   useFeatureFlagApi,
-} from "../index";
+} from "@lendistry/openfeature";
 
-const apiOptions = {
-  apiKey: import.meta.env.VITE_FEATURE_FLAG_API_KEY ?? "dev-client-key",
-  environment: "development",
-  subjectId: "demo-user",
-  baseUrl:
-    import.meta.env.VITE_FEATURE_FLAG_API_URL ?? "http://127.0.0.1:9099",
-};
+import "./App.css";
 
-export default function App() {
-  const { data, loading, error } = useFeatureFlagApi(apiOptions);
+const financialDocuments = [
+  {
+    title: "Bank statements",
+    description: "Last 3 months of business accounts",
+  },
+  {
+    title: "Business tax returns",
+    description: "Most recent 2 years of filed returns",
+  },
+];
+
+const legalDocuments = [
+  {
+    title: "Business license",
+    description: "Government authorization to operate",
+  },
+];
+
+// Document item component
+function DocumentItem({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <article className="document-item">
+      <span className="document-icon">▤</span>
+
+      <div>
+        <strong>{title}</strong>
+        <p>{description}</p>
+      </div>
+    </article>
+  );
+}
+
+// OrigenLink AI Chat
+function AssistantPanel() {
+  const [chatStarted, setChatStarted] = useState(false);
+
+  return (
+    <aside className="assistant-panel">
+      <header className="assistant-header">
+        <div className="brand">
+          <strong>
+            Origen<span>Link</span><b>››</b>
+          </strong>
+          <small>by Lendistry</small>
+        </div>
+
+        <span className="assistant-heading">
+          AI Loan
+          <br />
+          Assistant
+        </span>
+
+        <button
+          className="history-button"
+          type="button"
+          aria-label="Chat history"
+        >
+          ↶
+        </button>
+      </header>
+
+      <div className="assistant-welcome">
+        I'm here to assist you with your loan application.
+        If you have questions or need help getting prepared,
+        feel free to ask.
+      </div>
+
+      <div className="chat-intro">
+        <div className="chat-title">
+          <span className="bot-avatar">✦</span>
+          <strong>
+            {chatStarted ? "Chat is ready" : "Before we chat"}
+          </strong>
+        </div>
+
+        {chatStarted ? (
+          <>
+            <p>
+              The OrigenLink assistant can help with general
+              questions about loan products and the application
+              process.
+            </p>
+
+            <button
+              className="chat-link"
+              onClick={() => setChatStarted(false)}
+              type="button"
+            >
+              Back
+            </button>
+          </>
+        ) : (
+          <>
+            <p>
+              Hi, I'm the OrigenLink AI Loan Assistant.
+              I can answer general questions about our loan
+              products and how to apply. My answers may contain
+              errors. Nothing I say is a loan offer, approval,
+              or rate quote. A Lendistry team member can confirm
+              anything important at (855) 476-5870.
+            </p>
+
+            <p className="privacy-note">
+              This chat is recorded and stored to help us
+              serve you better.
+            </p>
+
+            <button
+              className="start-chat"
+              type="button"
+              onClick={() => setChatStarted(true)}
+            >
+              Start chat <span>→</span>
+            </button>
+
+            <button className="learn-more" type="button">
+              Learn more
+            </button>
+          </>
+        )}
+      </div>
+
+      <p className="assistant-footnote">
+        The AI Loan Assistant is an AI tool, not a person.
+        Responses may contain errors.
+      </p>
+    </aside>
+  );
+}
+
+// Fetch portal JSON configuration using API hook
+function PortalConfiguration() {
+  const { data, loading, error } = useFeatureFlagApi({
+    apiKey: "dev-api-key",
+    environment: "dev",
+    subjectId: "user-123",
+    flagKey: "new-portal-config",
+  });
+
+  if (loading) {
+    return (
+      <div className="config-card">
+        <h3>Portal Configuration</h3>
+        <p>Loading configuration...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="config-card">
+        <h3>Portal Configuration</h3>
+        <p className="config-error">
+          Unable to load configuration: {error}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="config-card">
+      <h3>Portal Configuration</h3>
+      <p>Configuration fetched successfully from the API.</p>
+
+      <pre>
+        {JSON.stringify(data, null, 2)}
+      </pre>
+    </div>
+  );
+}
+
+// Main application
+function App() {
+  const [briefcaseStarted, setBriefcaseStarted] = useState(false);
+  const [continueMessage, setContinueMessage] = useState("");
 
   return (
     <main className="page-shell">
-      <header className="hero">
-        <div className="brand-mark" aria-hidden="true">
-          OF
-        </div>
+      {/* Page heading */}
+      <header className="page-header">
         <div>
-          <p className="eyebrow">OpenFeature · React SDK</p>
-          <h1>Feature flags, in context.</h1>
-          <p className="hero-copy">
-            One evaluation powers every app and microfrontend.
+          <span className="eyebrow">LOAN APPLICATION</span>
+
+          <h1>Getting Prepared</h1>
+
+          <p>
+            Gather these documents to speed up your application
           </p>
         </div>
-        <span className="connection-pill">
-          <span className="connection-dot" />
-          Local API
-        </span>
+
+        <div className="progress">
+          <span className="progress-step current">1</span>
+          <i />
+          <span className="progress-step">2</span>
+          <i />
+          <span className="progress-step">3</span>
+        </div>
       </header>
 
-      <section className="feature-grid" aria-label="Feature flag examples">
-        <article className="feature-card primary-card">
-          <div className="card-kicker">01 / Boolean flag</div>
-          <h2>New dashboard</h2>
-          <p>Roll out the refreshed dashboard experience.</p>
-          <FeatureFlag
-            flagKey="new-dashboard"
-            defaultValue={false}
-            fallback={<span className="status disabled">Classic view</span>}
-          >
-            <span className="status enabled">Enabled for you</span>
-          </FeatureFlag>
-        </article>
+      {/* Main layout */}
+      <div className="page-grid">
 
-        <article className="feature-card">
-          <div className="card-kicker">02 / String variant</div>
-          <h2>Role-based access</h2>
-          <p>Only eligible roles see administration tools.</p>
-          <FeatureFlag
-            flagKey="user-role"
-            defaultValue="member"
-            matchValue="admin"
-            fallback={<span className="status disabled">Member access</span>}
-          >
-            <span className="status enabled">Admin tools unlocked</span>
-          </FeatureFlag>
-        </article>
+        {/* OrigenLink Chat: visible only when flag is true */}
+        <FeatureFlag
+          flagKey="new-portal-access"
+          defaultValue={false}
+          matchValue={true}
+          fallback={null}
+        >
+          <AssistantPanel />
+        </FeatureFlag>
 
-        <article className="feature-card">
-          <div className="card-kicker">03 / Rollout control</div>
-          <h2>Quick search</h2>
-          <p>Ship the new search experience behind a flag.</p>
-          <FeatureFlag
-            flagKey="quick-search"
-            defaultValue={false}
-            fallback={<span className="status disabled">Not in this rollout</span>}
-          >
-            <button className="search-button" type="button">
-              Open quick search <kbd>⌘ K</kbd>
-            </button>
-          </FeatureFlag>
-        </article>
-      </section>
+        {/* Documents section */}
+        <section className="main-column">
+          <div className="documents-card">
 
-      <section className="payload-card">
-        <div className="payload-heading">
-          <div>
-            <p className="eyebrow">Live evaluation</p>
-            <h2>API response</h2>
+            <div className="card-header">
+              <div>
+                <span className="eyebrow">YOUR CHECKLIST</span>
+                <h2>Documents You'll Need</h2>
+              </div>
+
+              <span className="ready-pill">
+                GET READY
+              </span>
+            </div>
+
+            {/* Financial documents */}
+            <section className="document-section">
+              <h3>Financial documents</h3>
+
+              <div className="document-grid">
+                {financialDocuments.map((doc) => (
+                  <DocumentItem
+                    key={doc.title}
+                    {...doc}
+                  />
+                ))}
+              </div>
+            </section>
+
+            {/* Business and legal documents */}
+            <section className="document-section">
+              <h3>Business &amp; legal</h3>
+
+              <div className="document-grid">
+                {legalDocuments.map((doc) => (
+                  <DocumentItem
+                    key={doc.title}
+                    {...doc}
+                  />
+                ))}
+              </div>
+            </section>
+
+            {/* Document Briefcase: visible only when flag is true */}
+            <FeatureFlag
+              flagKey="loan-application-flow-v2"
+              defaultValue={false}
+              matchValue={true}
+              fallback={null}
+            >
+              <section className="briefcase-section">
+                <div className="briefcase-copy">
+                  <div>
+                    <h3>Document Briefcase</h3>
+
+                    <p>
+                      Connecting Document Briefcase is required
+                      to continue. Uploading documents now is
+                      optional — you can share them later.
+                    </p>
+                  </div>
+
+                  <span className="optional-pill">
+                    OPTIONAL UPLOAD
+                  </span>
+                </div>
+
+                <button
+                  className={`upload-action ${
+                    briefcaseStarted ? "started" : ""
+                  }`}
+                  type="button"
+                  onClick={() => setBriefcaseStarted(true)}
+                >
+                  <span className="upload-symbol">↑</span>
+
+                  <strong>
+                    {briefcaseStarted
+                      ? "Document Briefcase setup started"
+                      : "Finish Setting Up Document Briefcase"}
+                  </strong>
+
+                  <span className="upload-arrow">→</span>
+                </button>
+
+                <p className="file-note">
+                  PDF, JPG, PNG or DOCX · Max 50 MB per file
+                </p>
+              </section>
+            </FeatureFlag>
           </div>
-          <span className={`request-state ${error ? "has-error" : ""}`}>
-            {loading ? "Fetching" : error ? "Request failed" : "Up to date"}
-          </span>
-        </div>
-        {error ? (
-          <p className="error-message" role="alert">
-            {error}
-          </p>
-        ) : (
-          <pre>{JSON.stringify(data, null, 2)}</pre>
-        )}
-      </section>
-      <footer>
-        <span>Typed defaults · OpenFeature provider · React components</span>
-        <span>Built for shared app experiences</span>
-      </footer>
+
+          {/* API configuration demo */}
+          <PortalConfiguration />
+
+          {/* Continue button */}
+          <div className="continue-wrap">
+            <button
+              className="continue-button"
+              type="button"
+              onClick={() =>
+                setContinueMessage(
+                  "Your preparation checklist is ready for the next step."
+                )
+              }
+            >
+              Continue <span>→</span>
+            </button>
+
+            {continueMessage && (
+              <p className="continue-message" role="status">
+                {continueMessage}
+              </p>
+            )}
+          </div>
+        </section>
+      </div>
     </main>
   );
 }
+
+export default App;

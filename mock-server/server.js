@@ -1,116 +1,134 @@
-import { createServer } from "node:http";
+/*
+ * Mock equivalent of feature-flag-service's FlagEvaluationController.
+ * Dependency-free (Node 18+):  node mock-server/server.js
+ *
+ * Endpoints (same wire contract as the real service):
+ *   POST /v1/flags/:key/evaluate   body {subjectId, environment, attributes} -> {"value": <boolean|object>}
+ *   POST /v1/flags/evaluate-all    same body                                 -> {"values": {"<flagKey>": <value>, ...}}
+ *   GET  /health
+ *
+ * Auth: X-API-Key header, looked up in API_KEYS (key -> namespaceId), like ApiKeyAuthenticationFilter.
+ * Missing/unknown key -> 401. OPTIONS preflight is exempt.
+ *
+ * Values are re-rolled on EVERY call (no stickiness): the same flag key can return true, then false,
+ * then a different JSON shape.
+ *
+ * Env: PORT (default 9099), API_KEYS_JSON (e.g. '{"my-key":"ns-a"}') overrides the default keys.
+ */
+const http = require('node:http');
 
-const port = Number(process.env.MOCK_SERVER_PORT ?? 9099);
-const apiKey = process.env.FEATURE_FLAG_API_KEY ?? "dev-client-key";
-const allowedOrigin = "http://127.0.0.1:5173";
-const flags = {
-  "new-dashboard": true,
-  "quick-search": true,
-  "user-role": "admin",
-  "dashboard-settings": {
-    density: "comfortable",
-    showActivity: true,
+const PORT = Number(process.env.PORT) || 9099;
+
+// key -> namespaceId
+const API_KEYS = process.env.API_KEYS_JSON
+  ? JSON.parse(process.env.API_KEYS_JSON)
+  : { 'dev-api-key': 'ns-dev', 'other-api-key': 'ns-other' };
+
+// namespaceId -> { flagKey: 'boolean' | 'json' }. Used by evaluate-all, and to pin a flag's type
+// in evaluate. Flags not listed here still work in evaluate (type is random per call).
+const FLAG_OVERRIDES = {
+  'ns-dev': {
+    'new-portal-access': 'boolean',
+    'loan-application-flow-v2': 'boolean',
+    'new-portal-config': 'json',
+    'checkout-config': 'json',
+  },
+  'ns-other': {
+    'other-flag': 'boolean',
+    'other-config': 'json',
   },
 };
 
-function sendJson(response, status, body) {
-  response.writeHead(status, {
-    "Content-Type": "application/json; charset=utf-8",
-    "Access-Control-Allow-Origin": allowedOrigin,
-    "Access-Control-Allow-Headers": "Content-Type, X-API-Key",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  });
-  response.end(JSON.stringify(body));
+const rnd = (n) => Math.floor(Math.random() * n);
+const pick = (arr) => arr[rnd(arr.length)];
+const word = () => Math.random().toString(36).slice(2, 8);
+
+const JSON_TEMPLATES = [
+  () => ({ enabled: Math.random() < 0.5, url: `https://example.com/${word()}` }),
+  () => ({ variant: pick(['control', 'treatment-a', 'treatment-b']), percentage: rnd(101) }),
+  () => ({ items: Array.from({ length: 1 + rnd(4) }, () => ({ id: word(), weight: rnd(10) })) }),
+  () => ({ theme: pick(['light', 'dark']), maxRetries: rnd(6), labels: [word(), word()] }),
+];
+
+const randomBoolean = () => Math.random() < 0.5;
+const randomObject = () => pick(JSON_TEMPLATES)();
+
+function randomValue(type) {
+  const t = type || pick(['boolean', 'json']);
+  return t === 'boolean' ? randomBoolean() : randomObject();
 }
 
-async function readJsonBody(request) {
-  const chunks = [];
-  let length = 0;
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, X-API-Key',
+};
 
-  for await (const chunk of request) {
-    length += chunk.length;
-    if (length > 16_384) {
-      throw new Error("Request body exceeds the development server limit.");
-    }
-    chunks.push(chunk);
-  }
-
-  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+function send(res, status, body) {
+  res.writeHead(status, { 'Content-Type': 'application/json', ...CORS });
+  res.end(body === undefined ? '' : JSON.stringify(body));
 }
 
-const server = createServer(async (request, response) => {
-  if (request.method === "OPTIONS") {
-    response.writeHead(204, {
-      "Access-Control-Allow-Origin": allowedOrigin,
-      "Access-Control-Allow-Headers": "Content-Type, X-API-Key",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+function readJson(req) {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', (c) => {
+      data += c;
+      if (data.length > 1e6) {
+        reject(new Error('body too large'));
+        req.destroy();
+      }
     });
-    response.end();
-    return;
+    req.on('end', () => {
+      if (!data) return resolve({});
+      try {
+        resolve(JSON.parse(data));
+      } catch (e) {
+        reject(e);
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
+const server = http.createServer(async (req, res) => {
+  const { pathname } = new URL(req.url, 'http://localhost');
+
+  if (req.method === 'OPTIONS') return send(res, 204);
+  if (req.method === 'GET' && pathname === '/health') return send(res, 200, { status: 'UP' });
+
+  const evalMatch = pathname.match(/^\/v1\/flags\/([^/]+)\/evaluate$/);
+  const isEvalAll = pathname === '/v1/flags/evaluate-all';
+  if (req.method !== 'POST' || (!evalMatch && !isEvalAll)) {
+    return send(res, 404, { error: 'Not Found' });
   }
 
-  const url = new URL(request.url ?? "/", `http://127.0.0.1:${port}`);
-  if (request.method === "GET" && url.pathname === "/health") {
-    sendJson(response, 200, { status: "ok" });
-    return;
-  }
-
-  if (request.method !== "POST") {
-    sendJson(response, 405, { error: "Method not allowed." });
-    return;
-  }
-
-  if (request.headers["x-api-key"] !== apiKey) {
-    sendJson(response, 401, { error: "Invalid development API key." });
-    return;
+  // Auth (mirrors ApiKeyAuthenticationFilter: namespace derived from the key, never the body)
+  const apiKey = req.headers['x-api-key'];
+  const namespaceId = apiKey ? API_KEYS[apiKey] : undefined;
+  if (!namespaceId) {
+    console.log(`401 ${req.method} ${pathname} (${apiKey ? 'unknown' : 'missing'} X-API-Key)`);
+    return send(res, 401, { error: 'Unauthorized' });
   }
 
   let body;
   try {
-    body = await readJsonBody(request);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Invalid JSON body.";
-    sendJson(response, 400, { error: message });
-    return;
+    body = await readJson(req);
+  } catch {
+    return send(res, 400, { error: 'Invalid JSON body' });
   }
 
-  if (
-    !body ||
-    typeof body !== "object" ||
-    typeof body.subjectId !== "string" ||
-    typeof body.environment !== "string"
-  ) {
-    sendJson(response, 400, { error: "subjectId and environment are required." });
-    return;
+  console.log(`200 ${req.method} ${pathname} namespace=${namespaceId} subject=${body.subjectId}`);
+  const flags = FLAG_OVERRIDES[namespaceId] || {};
+
+  if (evalMatch) {
+    const key = decodeURIComponent(evalMatch[1]);
+    return send(res, 200, { value: randomValue(flags[key]) });
   }
 
-  if (url.pathname === "/v1/flags/evaluate-all") {
-    sendJson(response, 200, { values: flags });
-    return;
-  }
-
-  const match = url.pathname.match(/^\/v1\/flags\/([^/]+)\/evaluate$/);
-  if (match) {
-    let flagKey;
-    try {
-      flagKey = decodeURIComponent(match[1]);
-    } catch {
-      sendJson(response, 400, { error: "Invalid flag key." });
-      return;
-    }
-
-    if (!Object.hasOwn(flags, flagKey)) {
-      sendJson(response, 404, { error: `Unknown flag: ${flagKey}` });
-      return;
-    }
-
-    sendJson(response, 200, { value: flags[flagKey] });
-    return;
-  }
-
-  sendJson(response, 404, { error: "Unknown evaluation endpoint." });
+  const values = {};
+  for (const [flagKey, type] of Object.entries(flags)) values[flagKey] = randomValue(type);
+  return send(res, 200, { values });
 });
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`Mock feature flag API listening on http://127.0.0.1:${port}`);
-});
+server.listen(PORT, () => console.log(`mock feature-flag-service listening on :${PORT}`));
