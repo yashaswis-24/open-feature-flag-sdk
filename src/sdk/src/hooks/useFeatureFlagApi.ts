@@ -1,12 +1,10 @@
-
 import { useEffect, useState } from "react";
 
-interface FeatureFlagApiOptions {
-  apiKey: string;
-  environment: string;
-  subjectId: string;
-  flagKey?: string;
-}
+import {
+  evaluateFlag,
+  evaluateAllFlags,
+  type FeatureFlagApiOptions,
+} from "../api/evaluateApi";
 
 interface FeatureFlagApiResult<T> {
   data: T | null;
@@ -14,63 +12,57 @@ interface FeatureFlagApiResult<T> {
   error: string | null;
 }
 
+interface UseFeatureFlagApiOptions extends FeatureFlagApiOptions {
+  flagKey?: string;
+}
+
 export function useFeatureFlagApi<T = unknown>({
   apiKey,
   environment,
   subjectId,
   flagKey,
-}: FeatureFlagApiOptions): FeatureFlagApiResult<T> {
+}: UseFeatureFlagApiOptions): FeatureFlagApiResult<T> {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const evaluateFlag = async () => {
+    const controller = new AbortController();
+
+    async function fetchFlags() {
       try {
         setLoading(true);
         setError(null);
 
-        let response: T;
-        
-          // Real API integration
-          const url = flagKey
-            ? `http://localhost:9099/v1/flags/${encodeURIComponent(flagKey)}/evaluate`
-            : `http://localhost:9099/v1/flags/evaluate-all`;
+        const options = {
+          apiKey,
+          environment,
+          subjectId,
+        };
 
-          const apiResponse = await fetch(url, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-API-Key": apiKey,
-            },
-            body: JSON.stringify({
-              subjectId,
-              environment,
-              attributes: {},
-            }),
-          });
+        const result = flagKey
+          ? await evaluateFlag(flagKey, options, controller.signal)
+          : await evaluateAllFlags(options, controller.signal);
 
-          if (!apiResponse.ok) {
-            throw new Error(
-              `Feature flag API error: ${apiResponse.status}`
-            );
-          }
-
-          response = await apiResponse.json();
-
-        setData(response);
+        setData(result as T);
       } catch (err) {
+        if (controller.signal.aborted) return;
+
         setError(
           err instanceof Error
             ? err.message
             : "Something went wrong"
         );
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
-    };
+    }
 
-    evaluateFlag();
+    fetchFlags();
+
+    return () => controller.abort();
   }, [apiKey, environment, subjectId, flagKey]);
 
   return { data, loading, error };

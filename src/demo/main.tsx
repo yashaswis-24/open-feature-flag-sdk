@@ -15,11 +15,9 @@ async function bootstrap() {
   });
 
   ReactDOM.createRoot(document.getElementById("root")!).render(
-    <React.StrictMode>
       <FeatureFlagProvider>
         <App />
       </FeatureFlagProvider>
-    </React.StrictMode>
   );
 }
 

@@ -202,14 +202,6 @@ function App() {
             Gather these documents to speed up your application
           </p>
         </div>
-
-        <div className="progress">
-          <span className="progress-step current">1</span>
-          <i />
-          <span className="progress-step">2</span>
-          <i />
-          <span className="progress-step">3</span>
-        </div>
       </header>
 
       {/* Main layout */}
