@@ -43,11 +43,13 @@ async function apiRequest<T>(
 
 // Evaluate all feature flags
 export async function evaluateAllFlags(
-  options: FeatureFlagApiOptions
+  options: FeatureFlagApiOptions,
+  signal?: AbortSignal
 ): Promise<Record<string, unknown>> {
   const response = await apiRequest<EvaluateAllResponse>(
     "/v1/flags/evaluate-all",
-    options
+    options,
+    signal
   );
 
   return response.values;

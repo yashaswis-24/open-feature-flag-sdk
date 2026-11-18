@@ -265,7 +265,7 @@ function App() {
               flagKey="loan-application-flow-v2"
               defaultValue={false}
               matchValue={true}
-              fallback={null}
+              fallback={<p>Document Briefcase not available</p>}
             >
               <section className="briefcase-section">
                 <div className="briefcase-copy">
