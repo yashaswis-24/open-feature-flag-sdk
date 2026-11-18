@@ -147,9 +147,13 @@ function AssistantPanel() {
 function PortalConfiguration() {
   const { data, loading, error } = useFeatureFlagApi({
     apiKey: "dev-api-key",
-    environment: "dev",
+    defaultValue: false,
     subjectId: "user-123",
     flagKey: "new-portal-config",
+    context: {
+      userAgent: navigator.userAgent,
+      location: window.location.href,
+    },
   });
 
   if (loading) {

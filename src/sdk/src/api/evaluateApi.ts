@@ -1,7 +1,8 @@
 export interface FeatureFlagApiOptions {
   apiKey: string;
-  environment: string;
   subjectId: string;
+  defaultValue?: unknown;
+  context?: EvaluationContext;
 }
 
 interface EvaluateAllResponse {
@@ -28,8 +29,8 @@ async function apiRequest<T>(
     },
     body: JSON.stringify({
       subjectId: options.subjectId,
-      environment: options.environment,
-      attributes: {},
+      defaultValue: options.defaultValue,
+      context: options.context,
     }),
     signal,
   });

@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import type { EvaluationContext, FlagType } from "@openfeature/react-sdk";
 
 import {
   evaluateFlag,
   evaluateAllFlags,
   type FeatureFlagApiOptions,
 } from "../api/evaluateApi";
+
 
 interface FeatureFlagApiResult<T> {
   data: T | null;
@@ -13,16 +15,21 @@ interface FeatureFlagApiResult<T> {
 }
 
 interface UseFeatureFlagApiOptions extends FeatureFlagApiOptions {
-  flagKey?: string;
+  flagKey: string;
+  defaultValue: T;
+  flagType: FlagType;
+  context?: EvaluationContext;
 }
 
-export function useFeatureFlagApi<T = unknown>({
+
+export function useFeatureFlagApi<T>({
   apiKey,
-  environment,
   subjectId,
   flagKey,
-}: UseFeatureFlagApiOptions): FeatureFlagApiResult<T> {
-  const [data, setData] = useState<T | null>(null);
+  defaultValue,
+  context = {}
+}: UseFeatureFlagApiOptions<T>): FeatureFlagApiResult<T> {
+  const [data, setData] = useState<T>(defaultValue );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,8 +43,9 @@ export function useFeatureFlagApi<T = unknown>({
 
         const options = {
           apiKey,
-          environment,
           subjectId,
+          defaultValue,
+          context,
         };
 
         const result = flagKey
@@ -63,7 +71,7 @@ export function useFeatureFlagApi<T = unknown>({
     fetchFlags();
 
     return () => controller.abort();
-  }, [apiKey, environment, subjectId, flagKey]);
+  }, [apiKey, subjectId, flagKey]);
 
   return { data, loading, error };
 }
