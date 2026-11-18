@@ -1,5 +1,5 @@
+
 import { useEffect, useState } from "react";
-import type { EvaluationContext, FlagType } from "@openfeature/react-sdk";
 
 import {
   evaluateFlag,
@@ -7,6 +7,18 @@ import {
   type FeatureFlagApiOptions,
 } from "../api/evaluateApi";
 
+// Supported feature flag types
+export type FlagType =
+  | "boolean"
+  | "string"
+  | "number"
+  | "object";
+
+// Flexible evaluation context
+export type EvaluationContext = Record<
+  string,
+  unknown
+>;
 
 interface FeatureFlagApiResult<T> {
   data: T | null;
@@ -14,22 +26,24 @@ interface FeatureFlagApiResult<T> {
   error: string | null;
 }
 
-interface UseFeatureFlagApiOptions extends FeatureFlagApiOptions {
+interface UseFeatureFlagApiOptions<T>
+  extends FeatureFlagApiOptions {
   flagKey: string;
   defaultValue: T;
   flagType: FlagType;
   context?: EvaluationContext;
 }
 
-
 export function useFeatureFlagApi<T>({
   apiKey,
+  baseUrl,
   subjectId,
   flagKey,
   defaultValue,
-  context = {}
+  context = {},
 }: UseFeatureFlagApiOptions<T>): FeatureFlagApiResult<T> {
-  const [data, setData] = useState<T>(defaultValue );
+
+  const [data, setData] = useState<T | null>(defaultValue);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,16 +57,25 @@ export function useFeatureFlagApi<T>({
 
         const options = {
           apiKey,
+          baseUrl,
           subjectId,
           defaultValue,
           context,
         };
 
         const result = flagKey
-          ? await evaluateFlag(flagKey, options, controller.signal)
-          : await evaluateAllFlags(options, controller.signal);
+          ? await evaluateFlag(
+              flagKey,
+              options,
+              controller.signal
+            )
+          : await evaluateAllFlags(
+              options,
+              controller.signal
+            );
 
         setData(result as T);
+
       } catch (err) {
         if (controller.signal.aborted) return;
 
@@ -61,6 +84,7 @@ export function useFeatureFlagApi<T>({
             ? err.message
             : "Something went wrong"
         );
+
       } finally {
         if (!controller.signal.aborted) {
           setLoading(false);
@@ -71,7 +95,12 @@ export function useFeatureFlagApi<T>({
     fetchFlags();
 
     return () => controller.abort();
+
   }, [apiKey, subjectId, flagKey]);
 
-  return { data, loading, error };
+  return {
+    data,
+    loading,
+    error,
+  };
 }

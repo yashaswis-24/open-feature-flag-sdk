@@ -1,6 +1,9 @@
+export type EvaluationContext = Record<string, unknown>;
+
 export interface FeatureFlagApiOptions {
   apiKey: string;
   subjectId: string;
+  baseUrl: string;
   defaultValue?: unknown;
   context?: EvaluationContext;
 }
@@ -13,30 +16,33 @@ interface EvaluateFlagResponse {
   value: unknown;
 }
 
-const BASE_URL = "http://localhost:9099";
-
 // Common API request
 async function apiRequest<T>(
   endpoint: string,
   options: FeatureFlagApiOptions,
   signal?: AbortSignal
 ): Promise<T> {
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-API-Key": options.apiKey,
-    },
-    body: JSON.stringify({
-      subjectId: options.subjectId,
-      defaultValue: options.defaultValue,
-      context: options.context,
-    }),
-    signal,
-  });
+  const response = await fetch(
+    `${options.baseUrl}${endpoint}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": options.apiKey,
+      },
+      body: JSON.stringify({
+        subjectId: options.subjectId,
+        defaultValue: options.defaultValue,
+        context: options.context,
+      }),
+      signal,
+    }
+  );
 
   if (!response.ok) {
-    throw new Error(`Feature flag API error: ${response.status}`);
+    throw new Error(
+      `Feature flag API error: ${response.status}`
+    );
   }
 
   return response.json();

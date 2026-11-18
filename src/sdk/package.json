@@ -22,12 +22,14 @@
     "build": "tsup src/index.ts --format esm,cjs --dts --clean --external react --external react-dom",
     "prepublishOnly": "npm run build"
   },
-  "peerDependencies": {
-    "react": ">=18",
-    "react-dom": ">=18",
-    "@openfeature/react-sdk": "^1.4.1"
+ "peerDependencies": {
+  "react": ">=18",
+  "react-dom": ">=18",
+  "@openfeature/react-sdk": "^1.4.1",
+  "@openfeature/web-sdk": "^1.10.0"
   },
   "devDependencies": {
-    "@openfeature/react-sdk": "^1.4.1"
+    "@openfeature/react-sdk": "^1.4.1",
+    "@openfeature/web-sdk": "^1.10.0"
   }
 }
