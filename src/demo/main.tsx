@@ -7,6 +7,11 @@ import {
 } from "@lendistry/openfeature";
 import App from "./App";
 
+await initializeFeatureFlags({
+  apiKey: "dev-api-key",
+  subjectId: "user-123",
+});
+
 async function bootstrap() {
   await initializeFeatureFlags({
     apiKey: "dev-api-key",

@@ -1,11 +1,13 @@
 
 import { useEffect, useState } from "react";
-
 import {
   evaluateFlag,
   evaluateAllFlags,
   type FeatureFlagApiOptions,
 } from "../api/evaluateApi";
+import {
+  getInitializedApiOptions,
+} from "../core/initialize";
 
 // Flexible evaluation context
 export type EvaluationContext = Record<
@@ -19,16 +21,13 @@ interface FeatureFlagApiResult<T> {
   error: string | null;
 }
 
-interface UseFeatureFlagApiOptions<T>
-  extends FeatureFlagApiOptions {
+interface UseFeatureFlagApiOptions<T> {
   flagKey: string;
   defaultValue: T;
   context?: EvaluationContext;
 }
 
 export function useFeatureFlagApi<T>({
-  apiKey,
-  subjectId,
   flagKey,
   defaultValue,
   context = {},
@@ -47,19 +46,19 @@ export function useFeatureFlagApi<T>({
         setError(null);
 
         const options = {
-          apiKey,
-          subjectId,
           defaultValue,
           context,
         };
 
         const result = flagKey
           ? await evaluateFlag(
+              getInitializedApiOptions(),
               flagKey,
               options,
               controller.signal
             )
           : await evaluateAllFlags(
+              getInitializedApiOptions(),
               options,
               controller.signal
             );
@@ -86,7 +85,7 @@ export function useFeatureFlagApi<T>({
 
     return () => controller.abort();
 
-  }, [apiKey, subjectId, flagKey]);
+  }, [flagKey]);
 
   return {
     data,

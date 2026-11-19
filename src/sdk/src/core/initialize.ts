@@ -24,6 +24,21 @@ type FlagConfig = Record<
   }
 >;
 
+let initializedApiOptions: Pick<
+  FeatureFlagOptions,
+  "apiKey" | "subjectId"
+> | null = null;
+
+export function getInitializedApiOptions() {
+  if (!initializedApiOptions) {
+    throw new Error(
+      "Feature flags are not initialized. Call initializeFeatureFlags first."
+    );
+  }
+
+  return initializedApiOptions;
+}
+
 export async function initializeFeatureFlags(
   options: FeatureFlagOptions
 ) {
