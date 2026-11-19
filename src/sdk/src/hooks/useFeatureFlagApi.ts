@@ -7,13 +7,6 @@ import {
   type FeatureFlagApiOptions,
 } from "../api/evaluateApi";
 
-// Supported feature flag types
-export type FlagType =
-  | "boolean"
-  | "string"
-  | "number"
-  | "object";
-
 // Flexible evaluation context
 export type EvaluationContext = Record<
   string,
@@ -30,13 +23,11 @@ interface UseFeatureFlagApiOptions<T>
   extends FeatureFlagApiOptions {
   flagKey: string;
   defaultValue: T;
-  flagType: FlagType;
   context?: EvaluationContext;
 }
 
 export function useFeatureFlagApi<T>({
   apiKey,
-  baseUrl,
   subjectId,
   flagKey,
   defaultValue,
@@ -57,7 +48,6 @@ export function useFeatureFlagApi<T>({
 
         const options = {
           apiKey,
-          baseUrl,
           subjectId,
           defaultValue,
           context,

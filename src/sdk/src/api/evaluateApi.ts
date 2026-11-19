@@ -3,7 +3,6 @@ export type EvaluationContext = Record<string, unknown>;
 export interface FeatureFlagApiOptions {
   apiKey: string;
   subjectId: string;
-  baseUrl: string;
   defaultValue?: unknown;
   context?: EvaluationContext;
 }
@@ -23,7 +22,7 @@ async function apiRequest<T>(
   signal?: AbortSignal
 ): Promise<T> {
   const response = await fetch(
-    `${options.baseUrl}${endpoint}`,
+    `http://localhost:9099${endpoint}`,
     {
       method: "POST",
       headers: {

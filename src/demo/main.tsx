@@ -10,7 +10,7 @@ import App from "./App";
 async function bootstrap() {
   await initializeFeatureFlags({
     apiKey: "dev-api-key",
-    subjectId: "user-123",
+    subjectId: "user-123"
   });
 
   ReactDOM.createRoot(document.getElementById("root")!).render(
