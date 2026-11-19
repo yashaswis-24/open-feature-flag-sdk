@@ -1,80 +1,85 @@
-# OpenFeature Flag SDK
+# Lendistry OpenFeature SDK
 
 ## 1. Overview
 
-The OpenFeature Flag SDK is a reusable React SDK that helps frontend applications integrate with the backend feature flag service.
+The **Lendistry OpenFeature SDK** is a reusable React and TypeScript library that provides a standardized way for frontend applications and microfrontends to integrate with the Lendistry Feature Flag API.
 
-It uses the OpenFeature SDK to register and manage feature flags. Applications can use the provided `FeatureFlag` component to conditionally show or hide UI elements based on flag values.
+The SDK integrates the OpenFeature SDK with the Lendistry backend, allowing applications to initialize feature flags, evaluate flag values, conditionally render UI components, and access OpenFeature functionality through a single package.
 
-The SDK also provides a `useFeatureFlagApi` hook to retrieve feature flag values directly from the backend.
-
-The SDK is designed to be shared across multiple React applications and microfrontends through an internal npm registry.
+It is designed to be shared across multiple React applications and microfrontends through an internal npm registry.
 
 ## 2. Key Features
 
-- **Centralized initialization:** Initialize feature flags by providing the API key, environment, and subject ID.
-- **OpenFeature integration:** Uses OpenFeature and `TypedInMemoryProvider` to register evaluated flag values.
-- **Conditional rendering:** Use the `FeatureFlag` component to show or hide UI elements.
-- **API integration:** Fetch all feature flags or evaluate an individual flag using `useFeatureFlagApi`.
-- **Reusable package:** Install and use the same SDK across multiple React applications.
-- **Microfrontend support:** Share the SDK between host and remote applications.
-- **TypeScript support:** Provides typed exports and component props.
+- **Centralized initialization:** Initialize the SDK once with API credentials and subject information.
+- **OpenFeature integration:** Uses OpenFeature and `TypedInMemoryProvider` to register evaluated feature flags.
+- **Conditional rendering:** Display or hide React components based on feature flag values.
+- **React hooks:** Exposes OpenFeature React hooks for accessing flag values and evaluation details.
+- **Direct API evaluation:** Provides `useFeatureFlagApi` for retrieving individual flag values directly from the backend.
+- **Evaluation context:** Supports passing additional user and application attributes during evaluation.
+- **Lifecycle hooks:** Supports registering custom hooks for evaluation lifecycle events.
+- **OpenFeature utilities:** Exposes client access, context management, logging, hook registration, and shutdown functionality.
+- **Microfrontend support:** Allows host and remote applications to consume a shared SDK integration.
+- **TypeScript support:** Provides typed components, options, and public exports.
 
 ## 3. Architecture
 
-The SDK acts as an integration layer between React applications, OpenFeature, and the backend feature flag service.
+The SDK acts as an integration layer between React applications, OpenFeature, and the Lendistry Feature Flag API.
 
-### How it works
+### Initialization and evaluation flow
 
-1. The host application initializes the SDK using `initializeFeatureFlags()`.
-2. The SDK sends a request to the backend to retrieve evaluated feature flags.
+1. The host application calls `initializeFeatureFlags()`.
+2. The SDK sends an API request to retrieve evaluated feature flags.
 3. The backend returns the evaluated flag values.
-4. The SDK converts these values into the configuration required by `TypedInMemoryProvider`.
-5. The provider is registered with OpenFeature.
-6. The application is wrapped with `FeatureFlagProvider`.
-7. Components use `FeatureFlag` to render UI based on the registered flag values.
+4. The SDK converts the response into an OpenFeature-compatible configuration.
+5. The SDK registers a `TypedInMemoryProvider` with OpenFeature.
+6. The host application renders its component tree inside `FeatureFlagProvider`.
+7. Host and remote components consume feature flags through the SDK.
 
-### Architecture flow
+### Architecture diagram
 
 ```text
-React Host Application
-        |
-        v
-initializeFeatureFlags()
-        |
-        v
-Feature Flag SDK
-        |
-        v
-Backend Feature Flag API
-        |
-        v
-Evaluated Flag Values
-        |
-        v
-TypedInMemoryProvider
-        |
-        v
-OpenFeature
-        |
-        v
-FeatureFlagProvider
-        |
-        v
-Host Application + Remote Applications
-        |
-        v
-FeatureFlag Component
-        |
-        v
-Conditional UI Rendering
+              Host Application
+                     |
+                     v
+          initializeFeatureFlags()
+                     |
+                     v
+             Lendistry SDK
+                     |
+                     v
+           Lendistry Backend API
+                     |
+                     v
+            Evaluated Flag Values
+                     |
+                     v
+           TypedInMemoryProvider
+                     |
+                     v
+                 OpenFeature
+                     |
+                     v
+           FeatureFlagProvider
+                     |
+             ----------------
+             |              |
+             v              v
+        Host App        Remote Apps
+             |              |
+             ----------------
+                     |
+                     v
+              FeatureFlag
+              React Hooks
 ```
+
+**Important:** Initialization fetches all flags and registers them with the in-memory provider. OpenFeature React hooks evaluate using the registered provider. They do not make a new backend request for every hook call.
+
+`useFeatureFlagApi` is a separate mechanism that directly calls the backend.
 
 ## 4. Installation
 
-The SDK is published to the internal npm registry.
-
-Configure the internal registry in your project's `.npmrc` file:
+Configure the internal npm registry in the application's `.npmrc` file.
 
 ```ini
 @lendistry:registry=<INTERNAL_NPM_REGISTRY_URL>
@@ -86,11 +91,19 @@ Install the SDK:
 npm install @lendistry/openfeature
 ```
 
-Make sure the application has compatible React and React DOM versions installed.
+### Peer dependencies
 
-## 5. Initialization
+Applications using the SDK should have compatible versions of:
 
-Initialize the SDK once in the host application before rendering components that consume feature flags.
+- React 18 or later
+- React DOM 18 or later
+- `@openfeature/react-sdk` compatible with the SDK package
+
+Refer to the published package manifest for the exact supported versions.
+
+## 5. SDK Initialization
+
+Initialize the SDK once in the host application before rendering components that depend on feature flags.
 
 ### Example
 
@@ -108,7 +121,6 @@ import App from "./App";
 async function bootstrap() {
   await initializeFeatureFlags({
     apiKey: "your-api-key",
-    environment: "dev",
     subjectId: "user-123",
   });
 
@@ -128,121 +140,279 @@ bootstrap();
 
 | Parameter | Description |
 |---|---|
-| `apiKey` | API key used to authenticate with the backend |
-| `environment` | Environment for which flags should be evaluated |
-| `subjectId` | Identifier of the user or subject for evaluation |
+| `apiKey` | API key used to authenticate backend requests |
+| `subjectId` | Identifier of the user or subject for flag evaluation |
 
-The SDK retrieves the evaluated flags and registers them with the OpenFeature provider.
+Initialize the SDK before rendering components that consume OpenFeature.
 
-**Note:** Initialize the SDK before rendering components that depend on feature flags.
+**Important:** Do not call `initializeFeatureFlags()` multiple times unnecessarily. The host application should own initialization.
 
-## 6. Using FeatureFlag
+## 6. FeatureFlag Component
 
-The `FeatureFlag` component is used to conditionally render UI based on a feature flag.
+The SDK provides a `FeatureFlag` component that wraps the OpenFeature React SDK component.
 
-### Example: Show a feature when the flag is enabled
+It allows developers to conditionally render UI based on a feature flag.
+
+### Example: Show a feature when enabled
 
 ```tsx
 import { FeatureFlag } from "@lendistry/openfeature";
 
 function Dashboard() {
   return (
-    <div>
-      <h1>Dashboard</h1>
-
-      <FeatureFlag flagKey="new-dashboard">
-        <div>
-          <h2>New Dashboard</h2>
-          <p>Welcome to the new dashboard!</p>
-        </div>
-      </FeatureFlag>
-    </div>
+    <FeatureFlag
+      flagKey="new-dashboard"
+      defaultValue={false}
+    >
+      <div>
+        <h2>New Dashboard</h2>
+        <p>Welcome to the new dashboard!</p>
+      </div>
+    </FeatureFlag>
   );
 }
-
-export default Dashboard;
 ```
 
-When `new-dashboard` evaluates to `true`, the child component is displayed. When it evaluates to `false`, the child component is hidden.
-
-### Example: Render different UI based on a flag value
+### Example: Render only when the flag matches a value
 
 ```tsx
 <FeatureFlag
   flagKey="loan-application-flow-v2"
+  defaultValue={false}
   matchValue={true}
+  fallback={<p>Feature unavailable</p>}
 >
   <NewLoanApplication />
 </FeatureFlag>
 ```
 
-The component supports the props exposed by the underlying OpenFeature React SDK `FeatureFlag` component.
+When the flag evaluates to `true`, the new application component is displayed. Otherwise, the fallback is rendered.
 
-## 7. Using useFeatureFlagApi
+The component forwards supported props to the underlying OpenFeature React SDK component.
 
-The `useFeatureFlagApi` hook retrieves feature flag values directly from the backend.
+## 7. OpenFeature React Hooks
 
-It supports two use cases:
+The SDK re-exports hooks from `@openfeature/react-sdk`, allowing microfrontends to access OpenFeature functionality through one package.
 
-- Retrieve all evaluated feature flags.
-- Retrieve the evaluated value of an individual feature flag.
+### Available hooks
 
-### Example: Retrieve all feature flags
+| Hook | Purpose |
+|---|---|
+| `useFlag` | Evaluates a feature flag |
+| `useBooleanFlagValue` | Retrieves a Boolean flag value |
+| `useStringFlagValue` | Retrieves a String flag value |
+| `useNumberFlagValue` | Retrieves a Number flag value |
+| `useObjectFlagValue` | Retrieves an Object flag value |
+| `useBooleanFlagDetails` | Retrieves Boolean evaluation details |
+| `useStringFlagDetails` | Retrieves String evaluation details |
+| `useNumberFlagDetails` | Retrieves Number evaluation details |
+| `useObjectFlagDetails` | Retrieves Object evaluation details |
+| `useTrack` | Tracks an application event |
+| `useOpenFeatureClientStatus` | Retrieves OpenFeature client status |
+| `useWhenProviderReady` | Waits for provider readiness |
+
+### Example
 
 ```tsx
-import { useFeatureFlagApi } from "@lendistry/openfeature";
+import {
+  useBooleanFlagValue,
+} from "@lendistry/openfeature";
 
-function FeatureFlags() {
-  const { data, loading, error } = useFeatureFlagApi({
-    apiKey: "your-api-key",
-    environment: "dev",
-    subjectId: "user-123",
+function Dashboard() {
+  const isDashboardEnabled = useBooleanFlagValue(
+    "new-dashboard",
+    false
+  );
+
+  if (!isDashboardEnabled) {
+    return null;
+  }
+
+  return <h2>New Dashboard</h2>;
+}
+```
+
+Use the appropriate hook based on the expected flag value type.
+
+## 8. Direct API Evaluation: useFeatureFlagApi
+
+The SDK provides `useFeatureFlagApi` for applications that need to retrieve an evaluated flag directly from the backend.
+
+Unlike OpenFeature React hooks, this hook makes a backend API request.
+
+### Example
+
+```tsx
+import {
+  useFeatureFlagApi,
+} from "@lendistry/openfeature";
+
+function PortalConfiguration() {
+  const {
+    data,
+    loading,
+    error,
+  } = useFeatureFlagApi({
+    flagKey: "new-portal-config",
+    defaultValue: false,
+    context: {
+      userAgent: navigator.userAgent,
+      location: window.location.href,
+    },
   });
 
-  if (loading) return <p>Loading feature flags...</p>;
+  if (loading) {
+    return <p>Loading configuration...</p>;
+  }
 
-  if (error) return <p>{error}</p>;
+  if (error) {
+    return <p>{error}</p>;
+  }
 
   return (
-    <pre>{JSON.stringify(data, null, 2)}</pre>
+    <pre>
+      {JSON.stringify(data, null, 2)}
+    </pre>
   );
 }
-
-export default FeatureFlags;
 ```
 
-### Example: Retrieve an individual feature flag
+API credentials and subject information are reused from the SDK initialization configuration.
 
-Pass `flagKey` to retrieve a specific flag.
+### Hook parameters
 
-```tsx
-const { data, loading, error } = useFeatureFlagApi({
-  apiKey: "your-api-key",
-  environment: "dev",
-  subjectId: "user-123",
-  flagKey: "new-dashboard",
-});
-```
+| Parameter | Description |
+|---|---|
+| `flagKey` | Feature flag key to evaluate |
+| `defaultValue` | Fallback value if evaluation cannot provide a value |
+| `context` | Additional evaluation attributes |
 
 ### Hook return values
 
 | Property | Description |
 |---|---|
-| `data` | Evaluated flag value or object containing all flag values |
-| `loading` | Indicates whether the API request is in progress |
+| `data` | Evaluated flag value |
+| `loading` | Indicates whether the request is in progress |
 | `error` | Error message if the request fails |
 
-**Note:** This hook makes a direct backend API request. It is separate from reading values already registered with the OpenFeature provider.
+## 9. Evaluation Context
 
-## 8. Microfrontend Integration
+Evaluation context allows applications to provide additional information about the user or application during flag evaluation.
 
-The SDK can be shared between a host application and multiple remote applications.
+### Example
 
-The recommended approach is to initialize the SDK once in the host application and allow remote applications to consume the same OpenFeature context.
+```tsx
+setEvaluationContext({
+  targetingKey: "user-123",
+  role: "admin",
+  application: "loan-portal",
+});
+```
+
+Context can be used by the feature flag provider when evaluating flags.
+
+The exact attributes supported for targeting depend on the backend feature flag configuration.
+
+## 10. Lifecycle Hooks
+
+The SDK provides lifecycle hook registration through OpenFeature.
+
+Lifecycle hooks allow applications to execute custom logic during feature flag evaluation.
+
+Supported lifecycle stages include:
+
+| Lifecycle stage | Purpose |
+|---|---|
+| `before` | Executes before flag evaluation |
+| `after` | Executes after successful evaluation |
+| `error` | Executes when evaluation fails |
+| `finally` | Executes after evaluation completes |
+
+### Example
+
+```tsx
+import {
+  addClientHooks,
+} from "@lendistry/openfeature";
+
+const featureFlagLifecycleHook = {
+  before: async (context) => {
+    console.log("Before feature evaluation", context);
+  },
+
+  after: async (context, details) => {
+    console.log("Feature evaluation completed", details);
+  },
+
+  error: async (context, error) => {
+    console.error("Feature evaluation failed", error);
+  },
+
+  finally: async (context, details) => {
+    console.log("Feature evaluation finished");
+  },
+};
+
+addClientHooks(featureFlagLifecycleHook);
+```
+
+Register lifecycle hooks after initialization and before the evaluations you want to observe.
+
+The callback signatures and supported lifecycle stages follow the installed OpenFeature SDK version.
+
+## 11. OpenFeature Utility Functions
+
+The SDK exposes utility functions to manage the OpenFeature client and its configuration.
+
+| Function | Description |
+|---|---|
+| `getFeatureFlagClient()` | Retrieves the initialized OpenFeature client |
+| `setEvaluationContext(context)` | Sets the evaluation context |
+| `addGlobalHooks(...hooks)` | Registers global OpenFeature hooks |
+| `addClientHooks(...hooks)` | Registers hooks for the SDK client |
+| `setFeatureFlagLogger(logger)` | Configures the OpenFeature logger |
+| `shutdownFeatureFlags()` | Closes OpenFeature and releases resources |
+
+### Example: Retrieve the client
+
+```tsx
+import {
+  getFeatureFlagClient,
+} from "@lendistry/openfeature";
+
+const client = getFeatureFlagClient();
+```
+
+### Example: Register a logger
+
+```tsx
+import {
+  setFeatureFlagLogger,
+} from "@lendistry/openfeature";
+
+setFeatureFlagLogger({
+  error: console.error,
+  warn: console.warn,
+  info: console.info,
+  debug: console.debug,
+});
+```
+
+Use the logger type and methods supported by the installed OpenFeature SDK version.
+
+## 12. Microfrontend Integration
+
+The recommended architecture is to initialize the SDK in the host application and share the provider context with remote applications.
 
 ### Host application
 
-The host application is responsible for initializing the SDK and providing the `FeatureFlagProvider`.
+The host application is responsible for:
+
+1. Installing the SDK.
+2. Initializing feature flags.
+3. Registering the OpenFeature provider.
+4. Wrapping the application tree with `FeatureFlagProvider`.
+5. Loading remote applications inside the provider tree.
 
 ```tsx
 import {
@@ -253,7 +423,6 @@ import {
 async function bootstrap() {
   await initializeFeatureFlags({
     apiKey: "your-api-key",
-    environment: "dev",
     subjectId: "user-123",
   });
 
@@ -267,39 +436,44 @@ async function bootstrap() {
 bootstrap();
 ```
 
-The host can render remote applications inside the provider:
+### Host application composition
 
 ```tsx
 function App() {
   return (
-    <div>
+    <>
       <h1>Host Application</h1>
+
       <RemoteDashboard />
+
       <RemoteLoanApplication />
-    </div>
+    </>
   );
 }
 ```
 
 ### Remote application
 
-Each remote application installs the SDK:
+Install the SDK in the remote application:
 
 ```bash
 npm install @lendistry/openfeature
 ```
 
-The remote application can directly use the `FeatureFlag` component.
+The remote application can consume the host's OpenFeature provider context.
 
 ```tsx
-import { FeatureFlag } from "@lendistry/openfeature";
+import {
+  FeatureFlag,
+} from "@lendistry/openfeature";
 
 function RemoteDashboard() {
   return (
-    <FeatureFlag flagKey="new-dashboard">
-      <div>
-        <h2>New Dashboard Feature</h2>
-      </div>
+    <FeatureFlag
+      flagKey="new-dashboard"
+      defaultValue={false}
+    >
+      <h2>Remote Dashboard Feature</h2>
     </FeatureFlag>
   );
 }
@@ -307,20 +481,30 @@ function RemoteDashboard() {
 export default RemoteDashboard;
 ```
 
-The remote application does not need to initialize the SDK again when it is rendered inside the host application's shared provider tree.
+The remote application should not initialize the SDK again when it is consuming the host's shared provider context.
 
-### Module Federation configuration
+### Important microfrontend considerations
 
-To ensure that the host and remote applications use the same React and OpenFeature context instances, configure the following dependencies as singletons.
+- Initialize the SDK once in the host application.
+- Render remote applications inside the host's `FeatureFlagProvider`.
+- Share compatible React and React DOM instances.
+- Share the SDK and OpenFeature React SDK instances through Module Federation.
+- Avoid separate React roots if the remote application needs to consume the host's React context.
+- If a remote application runs independently, it needs its own initialization and provider setup.
 
-**Host configuration example:**
+## 13. Module Federation Configuration
+
+Configure the host and remote applications to share compatible dependency instances.
+
+### Host configuration
 
 ```js
 new ModuleFederationPlugin({
   name: "host",
 
   remotes: {
-    dashboard: "dashboard@http://localhost:3001/remoteEntry.js",
+    dashboard:
+      "dashboard@http://localhost:3001/remoteEntry.js",
   },
 
   shared: {
@@ -345,7 +529,7 @@ new ModuleFederationPlugin({
 });
 ```
 
-**Remote configuration example:**
+### Remote configuration
 
 ```js
 new ModuleFederationPlugin({
@@ -379,238 +563,162 @@ new ModuleFederationPlugin({
 });
 ```
 
-**Important:**
+The exact configuration may vary depending on the Module Federation version and build tooling.
 
-- Initialize the SDK only once in the host application.
-- The host must wrap the component tree containing the remote applications with `FeatureFlagProvider`.
-- Host and remote applications should share the same React and OpenFeature SDK instances.
-- React context does not automatically cross separate React roots or isolated runtimes. Such applications need their own provider setup or an explicit context-sharing solution.
-- Ensure the shared dependency versions are compatible across applications.
+## 14. Backend API Integration
 
-## 9. API Contract
+The SDK communicates with the Lendistry backend using the following operations:
 
-The SDK communicates with the backend through the following endpoints.
+| Operation | Endpoint | Purpose |
+|---|---|---|
+| Evaluate all flags | `POST /v1/flags/evaluate-all` | Retrieves evaluated feature flag values |
+| Evaluate individual flag | `POST /v1/flags/{flagKey}/evaluate` | Retrieves an individual flag value |
 
-### 9.1 Evaluate all feature flags
+### Authentication
 
-**Endpoint**
-
-```http
-POST /v1/flags/evaluate-all
-```
-
-**Headers**
+The API key is sent through the request header:
 
 ```http
-Content-Type: application/json
 X-API-Key: <API_KEY>
 ```
 
-**Request body**
+### Request payload
 
 ```json
 {
   "subjectId": "user-123",
-  "environment": "dev",
-  "attributes": {}
-}
-```
-
-**Response**
-
-```json
-{
-  "values": {
-    "new-dashboard": true,
-    "enable-payment": false,
-    "show-reports": true
+  "defaultValue": false,
+  "context": {
+    "role": "admin"
   }
 }
 ```
 
-The SDK uses the returned `values` object to register the feature flags with the OpenFeature provider.
+The exact response structure depends on the backend API contract.
 
-### 9.2 Evaluate an individual feature flag
+**Security note:** Browser-based API keys are visible to users through browser developer tools. Do not expose confidential server-side credentials in frontend applications.
 
-**Endpoint**
+## 15. Error Handling
 
-```http
-POST /v1/flags/{flagKey}/evaluate
+Initialization errors should be handled by the host application.
+
+```tsx
+async function bootstrap() {
+  try {
+    await initializeFeatureFlags({
+      apiKey: "your-api-key",
+      subjectId: "user-123",
+    });
+
+    root.render(
+      <FeatureFlagProvider>
+        <App />
+      </FeatureFlagProvider>
+    );
+  } catch (error) {
+    console.error(
+      "Feature flag initialization failed:",
+      error
+    );
+  }
+}
+
+bootstrap();
 ```
+
+For direct API evaluation, use the `loading` and `error` properties returned by `useFeatureFlagApi`.
+
+## 16. Building the SDK
+
+From the SDK directory:
+
+```bash
+cd src/sdk
+npm install
+npm run build
+```
+
+The build generates JavaScript bundles and TypeScript declaration files in the `dist` directory.
+
+Expected output:
+
+```text
+dist/
+├── index.js
+├── index.cjs
+├── index.d.ts
+└── index.d.cts
+```
+
+## 17. Publishing the SDK
+
+Before publishing:
+
+1. Verify the SDK build succeeds.
+2. Verify the package name and version in `src/sdk/package.json`.
+3. Verify the internal npm registry configuration.
+4. Verify the generated `dist` files.
+5. Verify the README and package exports.
+6. Publish using the approved internal release process.
 
 Example:
 
-```http
-POST /v1/flags/new-dashboard/evaluate
-```
-
-**Headers**
-
-```http
-Content-Type: application/json
-X-API-Key: <API_KEY>
-```
-
-**Request body**
-
-```json
-{
-  "subjectId": "user-123",
-  "environment": "dev",
-  "attributes": {}
-}
-```
-
-**Response**
-
-```json
-{
-  "value": true
-}
-```
-
-The SDK returns the evaluated `value` to the calling application.
-
-### API summary
-
-| Endpoint | Purpose |
-|---|---|
-| `POST /v1/flags/evaluate-all` | Retrieves all evaluated feature flags |
-| `POST /v1/flags/{flagKey}/evaluate` | Retrieves the evaluated value of an individual flag |
-
-## 10. Local Development
-
-Follow these steps to run the SDK demo locally.
-
-### Prerequisites
-
-- Node.js
-- npm
-- Git
-
-### Step 1: Clone the repository
-
-```bash
-git clone https://github.com/yashaswis-24/open-feature-flag-sdk.git
-cd open-feature-flag-sdk
-```
-
-### Step 2: Install dependencies
-
-```bash
-npm install
-```
-
-### Step 3: Build the SDK
-
 ```bash
 cd src/sdk
+
 npm run build
-cd ../..
+
+npm publish
 ```
 
-### Step 4: Start the mock backend server
+Publishing requires the appropriate registry permissions and authentication.
 
-Open a terminal from the repository root:
+## 18. Public SDK Exports
 
-```bash
-node mock-server/server.cjs
-```
+The SDK provides the following public exports.
 
-The mock server runs at:
+### Initialization
 
-```text
-http://localhost:9099
-```
+- `initializeFeatureFlags`
+- `DEFAULT_DOMAIN`
 
-The development API key is:
+### Components
 
-```text
-dev-api-key
-```
+- `FeatureFlag`
+- `FeatureFlagProvider`
 
-### Step 5: Run the demo application
+### Hooks
 
-Open another terminal from the repository root:
+- `useFeatureFlagApi`
+- `useFlag`
+- `useBooleanFlagValue`
+- `useStringFlagValue`
+- `useNumberFlagValue`
+- `useObjectFlagValue`
+- `useBooleanFlagDetails`
+- `useStringFlagDetails`
+- `useNumberFlagDetails`
+- `useObjectFlagDetails`
+- `useTrack`
+- `useOpenFeatureClientStatus`
+- `useWhenProviderReady`
 
-```bash
-npm run dev
-```
+### Utilities
 
-The Vite development server will provide a local URL for the demo application.
+- `getFeatureFlagClient`
+- `setEvaluationContext`
+- `addGlobalHooks`
+- `addClientHooks`
+- `setFeatureFlagLogger`
+- `shutdownFeatureFlags`
 
-**Note:** The current SDK API implementation uses `http://localhost:9099` as its base URL. The mock server must be running for local API calls to succeed.
+### Types
 
-## 11. Publishing
-
-Only SDK maintainers should publish new versions.
-
-### Step 1: Navigate to the SDK package
-
-```bash
-cd src/sdk
-```
-
-### Step 2: Update the package version
-
-Update the version in `package.json`.
-
-For example:
-
-```json
-{
-  "name": "@lendistry/openfeature",
-  "version": "0.1.1"
-}
-```
-
-### Step 3: Build the SDK
-
-```bash
-npm run build
-```
-
-### Step 4: Verify the package contents
-
-```bash
-npm pack --dry-run
-```
-
-Check that the package contains the required compiled files, type declarations, and README.
-
-### Step 5: Authenticate with the internal npm registry
-
-```bash
-npm login --registry=<INTERNAL_NPM_REGISTRY_URL>
-```
-
-### Step 6: Publish the package
-
-```bash
-npm publish --registry=<INTERNAL_NPM_REGISTRY_URL>
-```
-
-After publishing, application teams can install the updated version:
-
-```bash
-npm install @lendistry/openfeature@0.1.1
-```
-
-## 12. Troubleshooting
-
-| Issue | Possible cause | Solution |
-|---|---|---|
-| Feature is not displayed | Flag evaluates to `false` | Verify the flag value returned by the backend |
-| API request fails | Mock server or backend is unavailable | Verify the server URL and confirm that the service is running |
-| API returns unauthorized | Invalid API key | Verify the API key and authentication configuration |
-| Feature flag is undefined | SDK was not initialized before rendering | Initialize the SDK before rendering the application |
-| Remote application cannot access flags | Remote is outside the host provider tree | Render the remote inside `FeatureFlagProvider` |
-| Multiple React context instances | Dependencies are not shared correctly | Configure React, React DOM, OpenFeature React SDK, and the SDK as Module Federation singletons |
-| TypeScript cannot find SDK exports | Package is not built or installed correctly | Run the SDK build and reinstall the package |
-| New package version is not available | Package manager is using a cached or older version | Verify the published version and update the dependency |
+- `FeatureFlagOptions`
+- `FeatureFlagProps`
 
 ---
 
-**Package name:** `@lendistry/openfeature`
+## Support
 
-**Repository:** https://github.com/yashaswis-24/open-feature-flag-sdk
+For SDK integration issues, contact the team responsible for maintaining the Lendistry OpenFeature SDK.
