@@ -22,7 +22,7 @@ async function apiRequest<T>(
   signal?: AbortSignal
 ): Promise<T> {
   const response = await fetch(
-    `http://localhost:9099${endpoint}`,
+    `http://localhost:9099${endpoint}`, //baseUrl
     {
       method: "POST",
       headers: {

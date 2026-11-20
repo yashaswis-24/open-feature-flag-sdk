@@ -1,3 +1,4 @@
+
 import {
   OpenFeature,
   TypedInMemoryProvider,
@@ -24,26 +25,36 @@ type FlagConfig = Record<
   }
 >;
 
-let initializedApiOptions: Pick<
+type InitializedOptions = Pick<
   FeatureFlagOptions,
   "apiKey" | "subjectId"
-> | null = null;
+>;
 
-export function getInitializedApiOptions() {
-  if (!initializedApiOptions) {
+// Shared browser-level storage.
+// This allows separate SDK module instances to access the same options.
+type SharedFeatureFlagState = typeof globalThis & {
+  __LENDISTRY_OPENFEATURE_API_OPTIONS__?: InitializedOptions;
+};
+
+const sharedState = globalThis as SharedFeatureFlagState;
+
+export function getInitializedApiOptions(): InitializedOptions {
+  const options = sharedState.__LENDISTRY_OPENFEATURE_API_OPTIONS__;
+
+  if (!options) {
     throw new Error(
       "Feature flags are not initialized. Call initializeFeatureFlags first."
     );
   }
 
-  return initializedApiOptions;
+  return options;
 }
 
 export async function initializeFeatureFlags(
   options: FeatureFlagOptions
 ) {
   try {
-    // Fetch all feature flags from Lendistry backend
+    // Fetch all feature flags from backend
     const values = await evaluateAllFlags(options);
 
     // Convert API response into OpenFeature configuration
@@ -61,9 +72,7 @@ export async function initializeFeatureFlags(
     );
 
     // Create OpenFeature in-memory provider
-    const provider = new TypedInMemoryProvider(
-      flagConfiguration
-    );
+    const provider = new TypedInMemoryProvider(flagConfiguration);
 
     // Register provider with OpenFeature
     await OpenFeature.setProviderAndWait(
@@ -71,15 +80,17 @@ export async function initializeFeatureFlags(
       provider
     );
 
-    // Return initialized OpenFeature client
+    // Save options in shared browser storage
+    sharedState.__LENDISTRY_OPENFEATURE_API_OPTIONS__ = {
+      apiKey: options.apiKey,
+      subjectId: options.subjectId,
+    };
+
+    console.log("Feature flags initialized successfully", sharedState.__LENDISTRY_OPENFEATURE_API_OPTIONS__);
+
     return OpenFeature.getClient(DEFAULT_DOMAIN);
-
   } catch (error) {
-    console.error(
-      "Failed to initialize feature flags:",
-      error
-    );
-
+    console.error("Failed to initialize feature flags:", error);
     throw error;
   }
 }

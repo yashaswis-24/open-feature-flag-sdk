@@ -1,8 +1,7 @@
-
 {
   "name": "@lendistry/openfeature",
   "version": "0.1.0",
-  "description": "Reusable OpenFeature integration for React applications and microfrontends",
+  "description": "Reusable feature flag SDK for React applications and microfrontends",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -18,15 +17,17 @@
     "dist",
     "README.md"
   ],
-  "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts --clean --external react --external react-dom",
-    "prepublishOnly": "npm run build"
+ "scripts": {
+  "build": "tsup src/index.ts --format esm,cjs --dts --clean --external react --external react-dom",
+  "prepublishOnly": "npm run build"
+},
+  "dependencies": {
+    "@openfeature/react-sdk": "^1.4.1",
+    "@openfeature/web-sdk": "^1.10.0"
   },
- "peerDependencies": {
-  "react": ">=18",
-  "react-dom": ">=18",
-  "@openfeature/react-sdk": "^1.4.1",
-  "@openfeature/web-sdk": "^1.10.0"
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
   },
   "devDependencies": {
     "@openfeature/react-sdk": "^1.4.1",

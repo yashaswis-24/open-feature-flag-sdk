@@ -8,12 +8,12 @@ import type {
 
 import { DEFAULT_DOMAIN } from "./initialize";
 
-// Get OpenFeature client
+// Gets the OpenFeature client to perform flag evaluations directly.
 export function getFeatureFlagClient() {
   return OpenFeature.getClient(DEFAULT_DOMAIN);
 }
 
-// Update evaluation context
+// Sets contextual information used when evaluating flags.
 export function setEvaluationContext(
   context: EvaluationContext
 ) {
@@ -23,22 +23,22 @@ export function setEvaluationContext(
   );
 }
 
-// Register global hooks
+// Registers hooks at the OpenFeature API/provider lifecycle level.
 export function addGlobalHooks(...hooks: Hook[]) {
   OpenFeature.addHooks(...hooks);
 }
 
-// Register client hooks
+// Registers hooks for client-level evaluation events.
 export function addClientHooks(...hooks: Hook[]) {
   getFeatureFlagClient().addHooks(...hooks);
 }
 
-// Configure global logger
+// Configures logging for feature flag operations.
 export function setFeatureFlagLogger(logger: Logger) {
   OpenFeature.setLogger(logger);
 }
 
-// Shutdown OpenFeature
+// Cleans up feature flag resources when the application shuts down.
 export async function shutdownFeatureFlags() {
   await OpenFeature.close();
 }

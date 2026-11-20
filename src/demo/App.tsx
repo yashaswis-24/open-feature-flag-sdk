@@ -146,9 +146,7 @@ function AssistantPanel() {
 // Fetch portal JSON configuration using API hook
 function PortalConfiguration() {
   const { data, loading, error } = useFeatureFlagApi({
-    apiKey: "dev-api-key",
     defaultValue: false,
-    subjectId: "user-123",
     flagKey: "new-portal-config",
     context: {
       userAgent: navigator.userAgent,

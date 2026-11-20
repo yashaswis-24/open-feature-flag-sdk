@@ -1,15 +1,12 @@
 
 import { useEffect, useState } from "react";
-import {
-  evaluateFlag,
-  evaluateAllFlags,
-  type FeatureFlagApiOptions,
-} from "../api/evaluateApi";
+
+import { evaluateFlag } from "../api/evaluateApi";
+
 import {
   getInitializedApiOptions,
 } from "../core/initialize";
 
-// Flexible evaluation context
 export type EvaluationContext = Record<
   string,
   unknown
@@ -30,7 +27,7 @@ interface UseFeatureFlagApiOptions<T> {
 export function useFeatureFlagApi<T>({
   flagKey,
   defaultValue,
-  context = {},
+  context,
 }: UseFeatureFlagApiOptions<T>): FeatureFlagApiResult<T> {
 
   const [data, setData] = useState<T | null>(defaultValue);
@@ -40,28 +37,22 @@ export function useFeatureFlagApi<T>({
   useEffect(() => {
     const controller = new AbortController();
 
-    async function fetchFlags() {
+    async function fetchFlag() {
       try {
         setLoading(true);
         setError(null);
 
-        const options = {
+        const apiOptions = {
+          ...getInitializedApiOptions(),
           defaultValue,
-          context,
+          context: context ?? {},
         };
 
-        const result = flagKey
-          ? await evaluateFlag(
-              getInitializedApiOptions(),
-              flagKey,
-              options,
-              controller.signal
-            )
-          : await evaluateAllFlags(
-              getInitializedApiOptions(),
-              options,
-              controller.signal
-            );
+        const result = await evaluateFlag(
+          flagKey,
+          apiOptions,
+          controller.signal
+        );
 
         setData(result as T);
 
@@ -81,11 +72,11 @@ export function useFeatureFlagApi<T>({
       }
     }
 
-    fetchFlags();
+    fetchFlag();
 
     return () => controller.abort();
 
-  }, [flagKey]);
+  }, [flagKey, defaultValue, context]);
 
   return {
     data,
